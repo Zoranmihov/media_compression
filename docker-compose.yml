@@ -1,34 +1,15 @@
 version: '3.8'
+
 services:
   user_db:
-    image: mariadb:10.5
-    container_name: mariadb
-    environment:
-      - MYSQL_ROOT_PASSWORD=root
-      - MYSQL_DATABASE=latest
-    ports:
-      - "3306:3306"
-    volumes:
-      - user_db_data:/var/lib/mysql
+    extends:
+      file: user_and_auth_microservice/docker-compose.user_and_auth_microservice.yml
+      service: user_db
 
   user_and_auth_microservice:
-    build:
-      context: ./user_and_auth_microservice
-      dockerfile: Dockerfile
-    container_name: user_and_auth_microservice
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:mariadb://user_db:3306/latest
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=root
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-      - SPRING_JACKSON_TIME_ZONE=Europe/Berlin
-      - SPRING_JACKSON_SERIALIZATION_WRITE_DATES_AS_TIMESTAMPS=false
-      - SPRING_DATASOURCE_TEST_WHILE_IDLE=true
-      - SPRING_DATASOURCE_VALIDATION_QUERY=SELECT 1
-    depends_on:
-      - user_db
+    extends:
+      file: user_and_auth_microservice/docker-compose.user_and_auth_microservice.yml
+      service: user_and_auth_microservice
 
 volumes:
   user_db_data:
