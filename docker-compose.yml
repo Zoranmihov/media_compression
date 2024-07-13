@@ -1,6 +1,11 @@
 version: '3.8'
 
 services:
+  gateway_microservice:
+    extends: 
+      file: gateway_microservice/docker-compose.gateway_microservice.yml
+      service: gateway_microservice
+
   user_db:
     extends:
       file: user_and_auth_microservice/docker-compose.user_and_auth_microservice.yml

@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   user_db:
     image: mariadb:10.5
@@ -12,7 +13,7 @@ services:
       - user_db_data:/var/lib/mysql
       - ./healthcheck.sh:/usr/local/bin/healthcheck.sh
     healthcheck:
-      test: ["CMD", "/bin/bash", "/usr/local/bin/healthcheck.sh"]
+      test: [ "CMD", "/bin/bash", "/usr/local/bin/healthcheck.sh" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,9 +22,9 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile
-    container_name: user_and_auth_microservice
+    container_name: user-and-auth-microservice
     ports:
-      - "8080:8080"
+      - "8081:8081"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mariadb://user_db:3306/latest
       - SPRING_DATASOURCE_USERNAME=root
@@ -33,9 +34,16 @@ services:
       - SPRING_JACKSON_SERIALIZATION_WRITE_DATES_AS_TIMESTAMPS=false
       - SPRING_DATASOURCE_TEST_WHILE_IDLE=true
       - SPRING_DATASOURCE_VALIDATION_QUERY=SELECT 1
+      - JWT_SECRET=super_secret
     depends_on:
+      gateway_microservice:
+        condition: service_started
       user_db:
         condition: service_healthy
+    # REMOVE VOLUMES FOR PRODUCTION
+    volumes: 
+      - .:/app
 
 volumes:
   user_db_data:
+
