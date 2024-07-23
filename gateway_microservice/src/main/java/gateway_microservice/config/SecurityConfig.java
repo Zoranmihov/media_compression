@@ -23,20 +23,31 @@ public class SecurityConfig {
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         ServerHttpSecurity.AuthorizeExchangeSpec authorizeExchange = http
-            .csrf().disable()
             .authorizeExchange();
 
-        // Dynamically configure routes
-        routeConfig.getProtectedRoutes().forEach((service, routes) -> {
-            routes.forEach(route -> authorizeExchange.pathMatchers(route).authenticated());
+        // Configure public routes
+        routeConfig.getPublicRoutes().forEach((service, routes) -> {
+            if (routes != null) {
+                routes.forEach(route -> authorizeExchange.pathMatchers(route).permitAll());
+            }
         });
 
-        routeConfig.getPublicRoutes().forEach((service, routes) -> {
-            routes.forEach(route -> authorizeExchange.pathMatchers(route).permitAll());
+        // Configure protected routes
+        routeConfig.getProtectedRoutes().forEach((service, roleBasedRoutes) -> {
+            if (roleBasedRoutes != null) {
+                roleBasedRoutes.forEach((role, routes) -> {
+                    if ("ADMIN".equals(role)) {
+                        routes.forEach(route -> authorizeExchange.pathMatchers(route).hasRole("ADMIN"));
+                    } else if ("USER".equals(role)) {
+                        routes.forEach(route -> authorizeExchange.pathMatchers(route).hasAnyRole("USER", "ADMIN"));
+                    }
+                });
+            }
         });
 
         authorizeExchange.anyExchange().permitAll()
             .and()
+            .csrf().disable()  // Updated way to disable CSRF protection
             .authenticationManager(authenticationManager)
             .securityContextRepository(securityContextRepository);
 

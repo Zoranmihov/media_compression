@@ -2,4 +2,7 @@ public:
   - /api/user/login
   - /api/user/register
 protected:
-  - /api/user/profile
+  USER:
+    - /api/user/profile
+  ADMIN:
+    - /api/user/admin

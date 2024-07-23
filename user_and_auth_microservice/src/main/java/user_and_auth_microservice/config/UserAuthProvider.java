@@ -38,25 +38,10 @@ public class UserAuthProvider {
                 .withExpiresAt(validity)
                 .withClaim("email", userDTO.getEmail())
                 .withClaim("displayName", userDTO.getDisplayName())
+                .withClaim("role", userDTO.getRole())
                 .sign(Algorithm.HMAC256(secretKey));
     }
 
-    // public Authentication validateToken(String token)
-    // {
-    //     Algorithm algo = Algorithm.HMAC256(secretKey);
-
-    //     JWTVerifier verifier = JWT.require(algo).build();
-
-    //     DecodedJWT decodedJWT = verifier.verify(token);
-
-    //    UserDTO user = UserDTO.builder()
-    //             .username(decodedJWT.getIssuer())
-    //             .email(decodedJWT.getClaim("email").asString())
-    //             .displayName(decodedJWT.getClaim("displayName").asString())
-    //             .build();
-
-    //     return new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList());
-    // }
 
     public String refreshToken(String oldToken) {
         Algorithm algo = Algorithm.HMAC256(secretKey);
@@ -76,6 +61,7 @@ public class UserAuthProvider {
         String username = decodedJWT.getIssuer();
         String email = decodedJWT.getClaim("email").asString();
         String displayName = decodedJWT.getClaim("displayName").asString();
+        String role = decodedJWT.getClaim("role").asString();
 
         Date validity = new Date(now.getTime() + 10800000);
 
@@ -85,6 +71,7 @@ public class UserAuthProvider {
                 .withExpiresAt(validity)
                 .withClaim("email", email)
                 .withClaim("displayName", displayName)
+                .withClaim("role", role)
                 .sign(algo);
     }
 

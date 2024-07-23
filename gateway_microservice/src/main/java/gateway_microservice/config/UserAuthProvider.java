@@ -38,9 +38,10 @@ public class UserAuthProvider {
                 .username(decodedJWT.getIssuer())
                 .email(decodedJWT.getClaim("email").asString())
                 .displayName(decodedJWT.getClaim("displayName").asString())
+                .role(decodedJWT.getClaim("role").asString())
                 .build();
 
-            return Mono.just(new UsernamePasswordAuthenticationToken(user, token, Collections.emptyList()));
+            return Mono.just(new UsernamePasswordAuthenticationToken(user, token, Collections.singletonList(() -> "ROLE_" + user.getRole())));
         } catch (Exception e) {
             return Mono.error(e);
         }
@@ -62,6 +63,7 @@ public class UserAuthProvider {
         String username = decodedJWT.getIssuer();
         String email = decodedJWT.getClaim("email").asString();
         String displayName = decodedJWT.getClaim("displayName").asString();
+        String role = decodedJWT.getClaim("role").asString();
 
         Date validity = new Date(now.getTime() + 10800000);
 
@@ -71,6 +73,7 @@ public class UserAuthProvider {
                 .withExpiresAt(validity)
                 .withClaim("email", email)
                 .withClaim("displayName", displayName)
+                .withClaim("role", role)
                 .sign(algo);
     }
 

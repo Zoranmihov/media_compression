@@ -10,6 +10,7 @@ public record RegisterDTO(
         @NotBlank @Email String email,
         @NotBlank @Size(min = 4, max = 20) String username,
         @NotBlank @Size(min = 4, max = 50) String displayName,
+        @Size(min = 4, max = 50) String role,
         @NotNull 
         @Size(min = 8, max = 16, message = "Password must be between 8 and 16 characters long")
         @Pattern(

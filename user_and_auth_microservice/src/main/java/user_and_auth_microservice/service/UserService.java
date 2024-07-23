@@ -7,6 +7,7 @@ import user_and_auth_microservice.dtos.RegisterResponseDTO;
 import user_and_auth_microservice.dtos.UserDTO;
 import user_and_auth_microservice.exception.AppException;
 import user_and_auth_microservice.mapper.UserMapper;
+import user_and_auth_microservice.model.Role;
 import user_and_auth_microservice.model.User;
 import user_and_auth_microservice.repository.UserRepository;
 import user_and_auth_microservice.utils.PasswordUtil;
@@ -32,8 +33,9 @@ public class UserService {
         throw new AppException("Invalid credentials", HttpStatus.UNAUTHORIZED);
     }
 
-    public RegisterResponseDTO register(RegisterDTO registerDTO){
+    public RegisterResponseDTO register(RegisterDTO registerDTO) {
 
+        // Check if email or username is already in use
         userRepository.findByEmailOrUsernameForRegistration(registerDTO.email(), registerDTO.username()).ifPresent(user -> {
             if (user.getEmail().equals(registerDTO.email())) {
                 throw new AppException("Email already in use", HttpStatus.BAD_REQUEST);
@@ -42,11 +44,30 @@ public class UserService {
             }
         });
 
+        // Convert DTO to Entity
         User user = userMapper.registerToUser(registerDTO);
+
+        // Hash the password
         user.setPassword(PasswordUtil.hashPassword(registerDTO.password()));
+
+        // Set the default role if it's not provided
+        if (registerDTO.role() == null || registerDTO.role().isEmpty()) {
+            user.setRole(Role.USER);
+        } else {
+            try {
+                user.setRole(Role.valueOf(registerDTO.role().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                throw new AppException("Invalid role provided", HttpStatus.BAD_REQUEST);
+            }
+        }
+
+        // Save the user
         userRepository.save(user);
+
+        // Prepare the response
         RegisterResponseDTO responseDTO = new RegisterResponseDTO();
         responseDTO.setMessage("Welcome");
+
         return responseDTO;
     }
 }
