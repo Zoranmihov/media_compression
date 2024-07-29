@@ -7,6 +7,8 @@ import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.security.web.server.context.ServerSecurityContextRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
+
+import gateway_microservice.service.UserAuthProviderService;
 import reactor.core.publisher.Mono;
 
 @Component
@@ -16,7 +18,7 @@ public class SecurityContextRepository implements ServerSecurityContextRepositor
     private AuthenticationManager authenticationManager;
 
     @Autowired
-    private UserAuthProvider userAuthProvider;
+    private UserAuthProviderService userAuthProvider;
 
     @Override
     public Mono<Void> save(ServerWebExchange swe, SecurityContext sc) {
@@ -24,25 +26,41 @@ public class SecurityContextRepository implements ServerSecurityContextRepositor
     }
 
     @Override
-    public Mono<SecurityContext> load(ServerWebExchange swe) {
-        String authHeader = swe.getRequest().getHeaders().getFirst("Authorization");
-        Mono<Authentication> authMono;
+public Mono<SecurityContext> load(ServerWebExchange swe) {
+    String authHeader = swe.getRequest().getHeaders().getFirst("Authorization");
+    Mono<Authentication> authMono;
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String authToken = authHeader.substring(7);
-            authMono = userAuthProvider.validateTokenAsync(authToken);
-        } else {
-            authMono = Mono.justOrEmpty(swe.getRequest().getCookies().getFirst("JWT"))
-                    .map(cookie -> cookie.getValue())
-                    .flatMap(userAuthProvider::validateTokenAsync);
+    if (authHeader != null && authHeader.startsWith("Bearer ")) {
+        String authToken = authHeader.substring(7);
+        authMono = checkAndValidateToken(swe, authToken);
+    } else {
+        authMono = Mono.justOrEmpty(swe.getRequest().getCookies().getFirst("JWT"))
+                .map(cookie -> cookie.getValue())
+                .flatMap(token -> {
+                    swe.getRequest().mutate().header("Authorization", "Bearer " + token).build();
+                    return checkAndValidateToken(swe, token);
+                });
+    }
+
+    return authMono.flatMap(auth -> this.authenticationManager.authenticate(auth)
+            .map(SecurityContextImpl::new));
+}
+
+
+private Mono<Authentication> checkAndValidateToken(ServerWebExchange swe, String authToken) {
+    return userAuthProvider.validateTokenAsync(authToken).flatMap(auth -> {
+        String refreshedToken = userAuthProvider.refreshToken(auth.getCredentials().toString());
+        if (!auth.getCredentials().toString().equals(refreshedToken)) {
+            swe.getResponse().addCookie(userAuthProvider.createJwtCookie(refreshedToken));
+            swe.getRequest().mutate().header("Authorization", "Bearer " + refreshedToken).build();
         }
 
-        return authMono.flatMap(auth -> {
-            String refreshedToken = userAuthProvider.refreshToken(auth.getCredentials().toString());
-            if (!auth.getCredentials().toString().equals(refreshedToken)) {
-                swe.getResponse().addCookie(userAuthProvider.createJwtCookie(refreshedToken));
-            }
-            return this.authenticationManager.authenticate(auth).map(SecurityContextImpl::new);
-        });
-    }
+        // Use the getSenderId method to extract the user ID and attach it as a header
+        String userId = userAuthProvider.getSenderId(authToken);
+        swe.getRequest().mutate().header("UserId", userId).build();
+
+        return Mono.just(auth);
+    });
+}
+
 }

@@ -3,6 +3,8 @@ public:
   - /api/user/register
 protected:
   USER:
-    - /api/user/profile
+    - /api/user/profile/**
+    - /api/user/delete/**
+    - /api/user/update
   ADMIN:
-    - /api/user/admin
+    - /api/user/updaterole

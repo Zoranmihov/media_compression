@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  comperrsing_microservice:
+    build: .
+    container_name: comperrsing-microservice
+    volumes:
+      - ./app:/app
+    ports:
+      - 8082:8082

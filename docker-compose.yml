@@ -1,6 +1,11 @@
 version: '3.8'
 
 services:
+  token_blacklist_redis:
+      extends: 
+        file: gateway_microservice/docker-compose.gateway_microservice.yml
+        service: token_blacklist_redis
+
   gateway_microservice:
     extends: 
       file: gateway_microservice/docker-compose.gateway_microservice.yml

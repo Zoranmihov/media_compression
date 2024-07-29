@@ -1,6 +1,12 @@
 version: '3.8'
 
 services:
+  token_blacklist_redis:
+    image: redis:latest
+    container_name: token-blacklist-redis
+    ports:
+      - "6379:6379"
+
   gateway_microservice:
     build:
       context: ./
@@ -12,7 +18,11 @@ services:
       - SPRING_JACKSON_TIME_ZONE=Europe/Berlin
       - SPRING_JACKSON_SERIALIZATION_WRITE_DATES_AS_TIMESTAMPS=false
       - JWT_SECRET=super_secret
+      - SPRING_DATA_REDIS_HOST=token-blacklist-redis
+      - SPRING_DATA_REDIS_PORT=6379
+    depends_on:
+      token_blacklist_redis:
+        condition: service_started
     # REMOVE VOLUMES FOR PRODUCTION
     volumes: 
       - .:/app
-

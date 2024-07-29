@@ -47,7 +47,7 @@ public class SecurityConfig {
 
         authorizeExchange.anyExchange().permitAll()
             .and()
-            .csrf().disable()  // Updated way to disable CSRF protection
+            .csrf().disable()
             .authenticationManager(authenticationManager)
             .securityContextRepository(securityContextRepository);
 

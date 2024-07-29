@@ -35,6 +35,8 @@ services:
       - SPRING_DATASOURCE_TEST_WHILE_IDLE=true
       - SPRING_DATASOURCE_VALIDATION_QUERY=SELECT 1
       - JWT_SECRET=super_secret
+      - SPRING_DATA_REDIS_HOST=token-blacklist-redis
+      - SPRING_DATA_REDIS_PORT=6379
     depends_on:
       gateway_microservice:
         condition: service_started
