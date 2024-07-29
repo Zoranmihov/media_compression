@@ -1,0 +1,2 @@
+# /etc/cron.d/cleanup-cron
+0 */12 * * * root /usr/local/bin/cleanup_shared_data.sh >> /var/log/cron.log 2>&1

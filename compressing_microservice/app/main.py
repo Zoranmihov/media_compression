@@ -1,35 +1,105 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import StreamingResponse
-from service.image_service import compress_image_service
-import io
+from fastapi import FastAPI, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi.responses import JSONResponse, FileResponse
+from celery.result import AsyncResult
+from service.tasks import compress_image_task, compress_video_task, celery_app, delete_file
+import os
+import tempfile
+import asyncio
 
-app = FastAPI()
+app = FastAPI(
+    title="compressing-microservice",
+    description="Microservice responsible for compressing and returning the compressed media",
+    version="1.0.0",
+    docs_url="/admin/doc",  # Custom path for Swagger UI
+    redoc_url=None  # Default path for ReDoc
+)
 
-@app.post("/compress-image/")
+SHARED_DATA_DIR = '/shared_data/'
+
+def save_file_temp(file: UploadFile):
+    os.makedirs(SHARED_DATA_DIR, exist_ok=True)
+    suffix = os.path.splitext(file.filename)[1]
+    temp_file_path = tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=SHARED_DATA_DIR).name
+    with open(temp_file_path, 'wb') as temp_file:
+        for chunk in iter(lambda: file.file.read(1024 * 1024), b''):
+            temp_file.write(chunk)
+    return temp_file_path
+
+
+@app.post("/api/compress/image/")
 async def compress_image(file: UploadFile = File(...), quality: int = 90):
     if not file:
         raise HTTPException(status_code=422, detail="No file provided")
-
     if quality < 50 or quality > 100:
         raise HTTPException(status_code=400, detail="Quality must be between 50 and 100")
 
-    try:
-        optimized_data, original_size, compressed_size = await compress_image_service(file, quality)
+    temp_file_path = save_file_temp(file)
+    task = compress_image_task.apply_async(args=[temp_file_path, quality])
+    return {"task_id": task.id, "status": "Processing"}
 
-        # Calculate the percentage reduction
-        size_reduction_percentage = ((original_size - compressed_size) / original_size) * 100
+@app.post("/api/compress/video/")
+async def compress_video(file: UploadFile = File(...), quality: int = 90):
+    if not file:
+        raise HTTPException(status_code=422, detail="No file provided")
+    if quality < 50 or quality > 100:
+        raise HTTPException(status_code=400, detail="Quality must be between 50 and 100")
 
-        headers = {
-            "X-Original-Size": str(original_size),
-            "X-Compressed-Size": str(compressed_size),
-            "X-Size-Reduction": f"{size_reduction_percentage:.2f}%"
+    temp_file_path = save_file_temp(file)
+    task = compress_video_task.apply_async(args=[temp_file_path, quality])
+    return {"task_id": task.id, "status": "Processing"}
+
+@app.get("/api/task-status/{task_id}")
+async def get_task_status(task_id: str):
+    task_result = AsyncResult(task_id, app=celery_app)
+    if task_result.state == 'PENDING':
+        return {"state": task_result.state, "status": "Pending..."}
+    elif task_result.state == 'SUCCESS':
+        result = task_result.result
+        return {
+            "state": task_result.state,
+            "original_size": result["original_size"],
+            "compressed_size": result["compressed_size"],
+            "download_url": f"/api/download/{task_id}"
         }
+    elif task_result.state == 'FAILURE':
+        return {"state": task_result.state, "status": str(task_result.info)}
+    else:
+        return {"state": task_result.state, "status": str(task_result.info)}
 
-        return StreamingResponse(io.BytesIO(optimized_data), media_type=file.content_type, headers=headers)
+@app.get("/api/downloadmedia/{task_id}")
+async def download_file(task_id: str, background_tasks: BackgroundTasks):
+    task_result = AsyncResult(task_id, app=celery_app)
+    if task_result.state == 'SUCCESS':
+        result = task_result.result
+        file_path = result["file_path"]
+        original_file_path = result["original_file_path"]
+        
+        background_tasks.add_task(delete_file, file_path)
+        background_tasks.add_task(delete_file, original_file_path)
+        
+        return FileResponse(path=file_path, filename=os.path.basename(file_path))
+    else:
+        raise HTTPException(status_code=400, detail="Task not completed or failed.")
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error compressing image: {str(e)}")
+@app.websocket("/ws/status/{task_id}")
+async def websocket_endpoint(websocket: WebSocket, task_id: str):
+    await websocket.accept()
+    try:
+        task_result = AsyncResult(task_id, app=celery_app)
+        while task_result.state not in ["SUCCESS", "FAILURE"]:
+            await websocket.send_json({"state": task_result.state})
+            await asyncio.sleep(1)
+            task_result = AsyncResult(task_id, app=celery_app)
 
-@app.get("/")
-def read_root():
-    return {"message": "Welcome to the Image Compression API"}
+        if task_result.state == 'SUCCESS':
+            result = task_result.result
+            await websocket.send_json({
+                "state": task_result.state,
+                "original_size": result["original_size"],
+                "compressed_size": result["compressed_size"],
+                "download_url": f"/api/download/{task_id}"
+            })
+        elif task_result.state == 'FAILURE':
+            await websocket.send_json({"state": task_result.state, "status": str(task_result.info)})
+    except WebSocketDisconnect:
+        pass

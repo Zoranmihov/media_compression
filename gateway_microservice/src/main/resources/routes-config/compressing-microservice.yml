@@ -1,0 +1,12 @@
+protected:
+  USER:
+    - /api/compress/image/
+    - /api/compress/video/
+    - /api/task-status/**
+    - /api/downloadmedia/**
+    - /ws/status/**
+  ADMIN:
+    - /admin/docs
+    - /admin/docs/**
+    - /admin/redoc
+    - /admin/redoc/**

@@ -1,19 +1,30 @@
 FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7
 
-# Set the working directory
 WORKDIR /app
 
-# Copy the requirements.txt file to the working directory
 COPY requirements.txt .
 
-# Install the dependencies
+RUN apt-get update && apt-get install -y ffmpeg cron
+
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code to the working directory
 COPY ./app /app
 
-# Expose the port that the app will run on
+# Add the crontab file to the cron.d directory
+COPY ./bash_scripts/crontab /etc/cron.d/cleanup-cron
+
+# Add the script to clean up the shared directory
+COPY ./bash_scripts/cleanup_shared_data.sh /usr/local/bin/cleanup_shared_data.sh
+
+# Give execution rights on the cleanup script
+RUN chmod +x /usr/local/bin/cleanup_shared_data.sh
+
+# Apply cron job
+RUN crontab /etc/cron.d/cleanup-cron
+
+# Create the log file to be able to run tail
+RUN touch /var/log/cron.log
+
 EXPOSE 8082
 
-# Run the application
-CMD ["uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8082"]
+CMD ["sh", "-c", "cron && tail -f /var/log/cron.log & uvicorn main:app --reload --host 0.0.0.0 --port 8082"]

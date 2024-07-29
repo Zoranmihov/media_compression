@@ -1,4 +1,8 @@
 fastapi
 pillow
-pyguetzli
-optimize-images
+moviepy 
+ffmpeg-python
+celery[redis]
+redis
+importlib-metadata==4.13.0
+websockets
