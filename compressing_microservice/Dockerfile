@@ -27,4 +27,6 @@ RUN touch /var/log/cron.log
 
 EXPOSE 8082
 
+## Remove reload for production
+
 CMD ["sh", "-c", "cron && tail -f /var/log/cron.log & uvicorn main:app --reload --host 0.0.0.0 --port 8082"]

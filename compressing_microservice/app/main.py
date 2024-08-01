@@ -48,7 +48,7 @@ async def compress_video(file: UploadFile = File(...), quality: int = 90):
     task = compress_video_task.apply_async(args=[temp_file_path, quality])
     return {"task_id": task.id, "status": "Processing"}
 
-@app.get("/api/task-status/{task_id}")
+@app.get("/api/compress/task-status/{task_id}")
 async def get_task_status(task_id: str):
     task_result = AsyncResult(task_id, app=celery_app)
     if task_result.state == 'PENDING':
@@ -66,7 +66,7 @@ async def get_task_status(task_id: str):
     else:
         return {"state": task_result.state, "status": str(task_result.info)}
 
-@app.get("/api/downloadmedia/{task_id}")
+@app.get("/api/compress/downloadmedia/{task_id}")
 async def download_file(task_id: str, background_tasks: BackgroundTasks):
     task_result = AsyncResult(task_id, app=celery_app)
     if task_result.state == 'SUCCESS':
@@ -81,7 +81,7 @@ async def download_file(task_id: str, background_tasks: BackgroundTasks):
     else:
         raise HTTPException(status_code=400, detail="Task not completed or failed.")
 
-@app.websocket("/ws/status/{task_id}")
+@app.websocket("/ws/compress/status/{task_id}")
 async def websocket_endpoint(websocket: WebSocket, task_id: str):
     await websocket.accept()
     try:

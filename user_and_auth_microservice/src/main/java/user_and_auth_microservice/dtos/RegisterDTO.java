@@ -1,5 +1,6 @@
 package user_and_auth_microservice.dtos;
 
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -10,7 +11,7 @@ public record RegisterDTO(
         @NotBlank @Email String email,
         @NotBlank @Size(min = 4, max = 20) String username,
         @NotBlank @Size(min = 4, max = 50) String displayName,
-        @NotBlank String role,
+        @Nullable String role,
         @NotNull 
         @Size(min = 8, max = 16, message = "Password must be between 8 and 16 characters long")
         @Pattern(

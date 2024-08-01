@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  frontend_microservice:
+    build: .
+    container_name: frontend-microservice
+    ports:
+      - 8083:3000
+    # Remove for production
+    volumes:
+      - ./app:/app

@@ -6,6 +6,7 @@ services:
     container_name: compressing-microservice
     volumes:
       - shared_data:/shared_data
+      # Remove for production
       - ./app:/app
     ports:
       - 8082:8082
@@ -23,6 +24,7 @@ services:
     container_name: compressing-microservice-celery
     volumes:
       - shared_data:/shared_data
+      # Remove for production
       - ./app:/app
     depends_on:
       - redis

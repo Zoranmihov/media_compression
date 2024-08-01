@@ -2,9 +2,9 @@ protected:
   USER:
     - /api/compress/image/
     - /api/compress/video/
-    - /api/task-status/**
-    - /api/downloadmedia/**
-    - /ws/status/**
+    - /api/compress/task-status/**
+    - /api/compress/downloadmedia/**
+    - /ws/compress/status/**
   ADMIN:
     - /admin/docs
     - /admin/docs/**
