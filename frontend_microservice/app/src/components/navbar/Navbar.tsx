@@ -25,8 +25,8 @@ const Navbar = () => {
                 <Link className={`link ${pathname === '/' ? 'active-nav-link' : ''}`} href="/">Dashboard</Link>
                 {user.token ? (
                     <>
-                        <Link className={`link ${pathname === '/profile' ? 'active-nav-link' : ''}`} href="/login">Profile</Link>
-                        <Link className={`link ${pathname === '/logout' ? 'active-nav-link' : ''}`} href="/register">Logout</Link>
+                        <Link className={`link ${pathname === '/profile' ? 'active-nav-link' : ''}`} href="/profile">Profile</Link>
+                        <Link className={`link ${pathname === '/logout' ? 'active-nav-link' : ''}`} href="/logout">Logout</Link>
                     </>
                 ) : (
                     <>

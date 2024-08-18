@@ -37,7 +37,6 @@ public Mono<SecurityContext> load(ServerWebExchange swe) {
         authMono = Mono.justOrEmpty(swe.getRequest().getCookies().getFirst("JWT"))
                 .map(cookie -> cookie.getValue())
                 .flatMap(token -> {
-                    swe.getRequest().mutate().header("Authorization", "Bearer " + token).build();
                     return checkAndValidateToken(swe, token);
                 });
     }
@@ -52,6 +51,7 @@ private Mono<Authentication> checkAndValidateToken(ServerWebExchange swe, String
         String refreshedToken = userAuthProvider.refreshToken(auth.getCredentials().toString());
         if (!auth.getCredentials().toString().equals(refreshedToken)) {
             swe.getResponse().addCookie(userAuthProvider.createJwtCookie(refreshedToken));
+            swe.getResponse().mutate().header("X-Token-Refreshed", refreshedToken).build();
             swe.getRequest().mutate().header("Authorization", "Bearer " + refreshedToken).build();
         }
 

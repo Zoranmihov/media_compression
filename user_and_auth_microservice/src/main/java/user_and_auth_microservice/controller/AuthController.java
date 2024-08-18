@@ -13,6 +13,8 @@ import user_and_auth_microservice.dtos.UserDTO;
 import user_and_auth_microservice.service.UserAuthProviderService;
 import user_and_auth_microservice.service.UserService;
 
+import java.time.Instant;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,6 +38,7 @@ public class AuthController {
         String token = userAuthProvider.createToken(responseDTO);
         responseDTO.setToken(token);
         response.addCookie(userAuthProvider.createJwtCookie(token, 10803));
+        responseDTO.setTokenExpirationTime(Instant.now().plusSeconds(10803).toEpochMilli());
 
         return ResponseEntity.ok(responseDTO);
     }
