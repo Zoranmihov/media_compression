@@ -1,0 +1,97 @@
+.file-upload-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.file-upload-slider {
+    display: flex;
+    max-width: 300px;
+    align-items: center;
+    justify-content: center;
+    margin: 20px auto;
+}
+
+
+/* The slider itself */
+#file-upload-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    max-width: 280px;
+    border-radius: 20px; 
+    height: 25px; 
+    background: #fbfbfb;
+    outline: none;
+  }
+  
+
+  
+  #file-upload-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 25px;
+    height: 25px;
+    background: #3adcea;
+    cursor: pointer;
+    border-radius: 50%;
+  }
+  
+  #file-upload-slider::-moz-range-thumb {
+    width: 25px; 
+    height: 25px; 
+    background: #3adcea; 
+    cursor: pointer;
+  }
+
+  #quallity-value {
+    font-size: 22px;
+    color: white;
+    margin-left: 8px;
+  }
+  
+  .file-upload-inputs-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #media-file-upload {
+    display: none;
+  }
+
+  .file-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 auto;
+    max-width: calc(1400px);
+    justify-content: flex-start;
+  }
+
+  
+
+  @media only screen and (max-width: 1390px) {
+    .file-cards {
+      max-width: 1154px;
+    }
+  }
+
+  
+  @media only screen and (max-width: 1110px) {
+    .file-cards {
+      max-width: 876px;
+    }
+  }
+
+  @media only screen and (max-width: 830px) {
+    .file-cards {
+      max-width: 560px;
+    }
+  }
+
+  @media only screen and (max-width: 550px) {
+    .file-cards {
+      justify-content: center;
+    }
+  }

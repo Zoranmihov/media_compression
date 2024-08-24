@@ -1,5 +1,6 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks, Form
 from fastapi.responses import JSONResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from celery.result import AsyncResult
 from service.tasks import compress_image_task, compress_video_task, celery_app, delete_file
 import os
@@ -12,6 +13,18 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/admin/doc",  # Custom path for Swagger UI
     redoc_url=None  # Default path for ReDoc
+)
+
+origins = [
+    "http://localhost:8083",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 SHARED_DATA_DIR = '/shared_data/'
@@ -27,7 +40,7 @@ def save_file_temp(file: UploadFile):
 
 
 @app.post("/api/compress/image/")
-async def compress_image(file: UploadFile = File(...), quality: int = 90):
+async def compress_image(file: UploadFile = File(...), quality: int = Form(90)):
     if not file:
         raise HTTPException(status_code=422, detail="No file provided")
     if quality < 50 or quality > 100:
@@ -38,7 +51,7 @@ async def compress_image(file: UploadFile = File(...), quality: int = 90):
     return {"task_id": task.id, "status": "Processing"}
 
 @app.post("/api/compress/video/")
-async def compress_video(file: UploadFile = File(...), quality: int = 90):
+async def compress_video(file: UploadFile = File(...), quality: int = Form(90)):
     if not file:
         raise HTTPException(status_code=422, detail="No file provided")
     if quality < 50 or quality > 100:
@@ -97,7 +110,7 @@ async def websocket_endpoint(websocket: WebSocket, task_id: str):
                 "state": task_result.state,
                 "original_size": result["original_size"],
                 "compressed_size": result["compressed_size"],
-                "download_url": f"/api/download/{task_id}"
+                "task_id": f"{task_id}"
             })
         elif task_result.state == 'FAILURE':
             await websocket.send_json({"state": task_result.state, "status": str(task_result.info)})

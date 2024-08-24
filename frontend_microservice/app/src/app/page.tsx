@@ -11,7 +11,7 @@ export default function Home() {
     user.token ? (
       <FileUpload />
     ) : (
-      <p>Please log in in order to compress media files</p>
+      <div className='welcome-text-container'><p>Please log in in order to compress media files</p></div>
     )
   );
 }

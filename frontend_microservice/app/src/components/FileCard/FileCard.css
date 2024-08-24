@@ -1,0 +1,87 @@
+.file-card {
+    width: 250px; /* Increased width for larger image display */
+    height: 450px; /* Increased height for larger image display */
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+    margin: 10px;
+}
+
+.file-card-remove {
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    align-self: flex-end;
+    margin: 5px;
+    border-radius: 4px;
+}
+
+.file-card-remove:hover {
+    background-color: #e60000;
+}
+
+.file-card-image-container {
+    flex: 2; /* Allows the image container to take up more space */
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 5px 0;
+    min-height: 200px; /* Ensure a minimum height for the image container */
+}
+
+.file-card-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain; /* Use contain to ensure the entire image is visible */
+    border-radius: 4px;
+}
+
+.file-card-info {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    text-align: center;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    font-size: 14px;
+    flex: 1; /* Ensures that the info section takes up the remaining space */
+}
+
+.file-card-info p {
+    margin: 5px 0;
+}
+
+.file-card-button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 7px 12px; /* Slightly increased padding for better button size */
+    cursor: pointer;
+    margin-top: 10px;
+    border-radius: 4px;
+}
+
+
+.file-card-button:hover {
+    background-color: #45a049;
+}
+
+.file-card-compress:disabled,
+.file-card-remove:disabled {
+    background-color: rgb(126, 126, 126);
+    color: white;
+    cursor: not-allowed; /* Set cursor to not-allowed when disabled */
+}
+
+.file-card-compress:disabled:hover,
+.file-card-remove:disabled:hover {
+    background-color: rgb(126, 126, 126); /* Ensure hover doesn't change background color */
+    cursor: not-allowed;
+}

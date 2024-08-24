@@ -51,7 +51,7 @@ private Mono<Authentication> checkAndValidateToken(ServerWebExchange swe, String
         String refreshedToken = userAuthProvider.refreshToken(auth.getCredentials().toString());
         if (!auth.getCredentials().toString().equals(refreshedToken)) {
             swe.getResponse().addCookie(userAuthProvider.createJwtCookie(refreshedToken));
-            swe.getResponse().mutate().header("X-Token-Refreshed", refreshedToken).build();
+            swe.getResponse().getHeaders().add("X-Token-Refreshed", refreshedToken);
             swe.getRequest().mutate().header("Authorization", "Bearer " + refreshedToken).build();
         }
 

@@ -145,4 +145,10 @@ public class AuthController {
 
         return ResponseEntity.ok().body("User was updated");
     }
+
+    @GetMapping("/logout")
+    public ResponseEntity<String> logout(HttpServletResponse response) {
+        response.addCookie(userAuthProvider.createJwtCookie(null, 0));
+        return ResponseEntity.ok().body("Goodbye");
+    }
 }

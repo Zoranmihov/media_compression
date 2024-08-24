@@ -2,13 +2,15 @@ FROM node:20.16.0-slim
 
 WORKDIR /app
 
-COPY ./app /app
+# COPY ./app/package*.json ./
 
-RUN npm install
+# RUN npm install
+
+COPY ./app /app
 
 EXPOSE 3000
 
-CMD ["npm", "run", "dev"]
+CMD ["sh", "-c", "npm install && npm run dev"]
 
 # For production
 
@@ -17,5 +19,3 @@ CMD ["npm", "run", "dev"]
 
 # Start the Next.js server in production mode
 # CMD ["npm", "start"]
-
-
