@@ -11,7 +11,10 @@ export function requireAuth() {
       router.push('/login');
     }
   }, [user?.token, loading, router]);
+
+  return !!user?.token;
 }
+
 
 
 export function requireGuest() {

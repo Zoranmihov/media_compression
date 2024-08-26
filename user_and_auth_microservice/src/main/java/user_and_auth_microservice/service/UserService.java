@@ -112,6 +112,7 @@ public class UserService {
             User user = userRepository.findById(accountId)
                     .orElseThrow(() -> new AppException("User not found", HttpStatus.NOT_FOUND));
             user.setDisplayName(newDisplayname);
+            userRepository.save(user);
             return newDisplayname;
         } catch (Exception e) {
             throw new AppException("Error" + e.getMessage(), HttpStatus.valueOf(422));
@@ -123,6 +124,7 @@ public class UserService {
             User user = userRepository.findById(accountId)
                     .orElseThrow(() -> new AppException("User not found", HttpStatus.NOT_FOUND));
             user.setPassword(PasswordUtil.hashPassword(newPassword));
+            userRepository.save(user);
             return "Password was updated";
         } catch (Exception e) {
             throw new AppException("Error" + e.getMessage(), HttpStatus.valueOf(422));

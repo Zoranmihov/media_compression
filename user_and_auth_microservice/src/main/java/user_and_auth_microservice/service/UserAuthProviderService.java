@@ -42,7 +42,8 @@ public class UserAuthProviderService {
     public Cookie createJwtCookie(String token, int maxAge) {
         Cookie jwtCookie = new Cookie("JWT", token);
         jwtCookie.setHttpOnly(true);
-        jwtCookie.setSecure(true);
+        //TODO: Set cookie to true for production
+        jwtCookie.setSecure(false);
         jwtCookie.setPath("/");
         jwtCookie.setMaxAge(maxAge);
         return jwtCookie;

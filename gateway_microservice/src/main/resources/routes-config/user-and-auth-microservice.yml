@@ -6,5 +6,6 @@ protected:
     - /api/user/profile/**
     - /api/user/delete/**
     - /api/user/update
+    - /api/user/logout
   ADMIN:
     - /api/user/updaterole

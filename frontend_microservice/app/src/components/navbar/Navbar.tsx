@@ -11,6 +11,34 @@ import { useUser } from '@/context/UserContext'
 const Navbar = () => {
     const pathname: string = usePathname()
     const { user, setUser } = useUser();
+
+    const handleLogout = async () => {
+        try {
+            const response = await fetch('http://localhost:8080/api/user/logout', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${user.token}` // Include the Authorization header
+                },
+                credentials: 'include', // Include cookies in the request
+            });
+    
+            if (response.ok) {
+                // Clear session storage
+                sessionStorage.clear();
+    
+                // Clear user state
+                setUser({});
+    
+                console.log('Logout successful');
+            } else {
+                console.error('Logout failed');
+            }
+        } catch (error) {
+            console.error('Error during logout:', error);
+        }
+    };
+    
+
     return (
         <nav className="main-nav">
             <div className="logo">
@@ -26,7 +54,7 @@ const Navbar = () => {
                 {user.token ? (
                     <>
                         <Link className={`link ${pathname === '/profile' ? 'active-nav-link' : ''}`} href="/profile">Profile</Link>
-                        <Link className={`link ${pathname === '/logout' ? 'active-nav-link' : ''}`} href="/logout">Logout</Link>
+                        <p onClick={handleLogout}>Logout</p>
                     </>
                 ) : (
                     <>

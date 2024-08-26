@@ -88,7 +88,7 @@ public class AuthController {
                 UserDTO newEmail = userService.updateEmail(updateUserDTO.accountId(), newInformation);
                 String newEmailToken = userAuthProvider.createToken(newEmail);
                 response.addCookie(userAuthProvider.createJwtCookie(newEmailToken, 10803));
-                response.addHeader("newJWT", newEmailToken);
+                response.addHeader("X-Token-Refreshed", newEmailToken);
                 responseInfo = newInformation;
                 break;
 
@@ -100,7 +100,7 @@ public class AuthController {
                 UserDTO newUsername = userService.updateUsername(updateUserDTO.accountId(), newInformation);
                 String newUsernameToken = userAuthProvider.createToken(newUsername);
                 response.addCookie(userAuthProvider.createJwtCookie(newUsernameToken, 10803));
-                response.addHeader("newJWT", newUsernameToken);
+                response.addHeader("X-Token-Refreshed", newUsernameToken);
                 responseInfo = newInformation;
                 break;
 
@@ -119,14 +119,14 @@ public class AuthController {
                             "Password must be between 8 and 16 characters, contain at least one uppercase letter, one number, and one special character");
                 }
                 userService.updatePassword(updateUserDTO.accountId(), newInformation);
-                responseInfo = newInformation;
+                responseInfo = "Password was updated";
                 break;
 
             default:
                 return ResponseEntity.badRequest().body("Invalid field to update");
         }
 
-        return ResponseEntity.ok(newInformation);
+        return ResponseEntity.ok(responseInfo);
     }
 
     @GetMapping("/profile/{accountid}")

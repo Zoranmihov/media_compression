@@ -17,7 +17,13 @@
     font-weight: 800 !important;
   }
 
-.main-nav a {
+  .main-nav p {
+    display: inline;
+    cursor: pointer;
+  }
+
+.main-nav a,
+.main-nav p {
     margin-left: 6px;
     font-size: 16px;
     color: white;

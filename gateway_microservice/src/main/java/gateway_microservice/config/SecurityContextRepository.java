@@ -1,12 +1,15 @@
 package gateway_microservice.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.security.web.server.context.ServerSecurityContextRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
+
+import com.auth0.jwt.exceptions.TokenExpiredException;
 
 import gateway_microservice.service.UserAuthProviderService;
 import reactor.core.publisher.Mono;
@@ -47,20 +50,27 @@ public Mono<SecurityContext> load(ServerWebExchange swe) {
 
 
 private Mono<Authentication> checkAndValidateToken(ServerWebExchange swe, String authToken) {
-    return userAuthProvider.validateTokenAsync(authToken).flatMap(auth -> {
-        String refreshedToken = userAuthProvider.refreshToken(auth.getCredentials().toString());
-        if (!auth.getCredentials().toString().equals(refreshedToken)) {
-            swe.getResponse().addCookie(userAuthProvider.createJwtCookie(refreshedToken));
-            swe.getResponse().getHeaders().add("X-Token-Refreshed", refreshedToken);
-            swe.getRequest().mutate().header("Authorization", "Bearer " + refreshedToken).build();
-        }
+    return userAuthProvider.validateTokenAsync(authToken)
+        .flatMap(auth -> {
+            String refreshedToken = userAuthProvider.refreshToken(auth.getCredentials().toString());
+            if (!auth.getCredentials().toString().equals(refreshedToken)) {
+                swe.getResponse().addCookie(userAuthProvider.createJwtCookie(refreshedToken));
+                swe.getResponse().getHeaders().add("X-Token-Refreshed", refreshedToken);
+                swe.getRequest().mutate().header("Authorization", "Bearer " + refreshedToken).build();
+            }
 
-        // Use the getSenderId method to extract the user ID and attach it as a header
-        String userId = userAuthProvider.getSenderId(authToken);
-        swe.getRequest().mutate().header("UserId", userId).build();
+            String userId = userAuthProvider.getSenderId(authToken);
+            swe.getRequest().mutate().header("UserId", userId).build();
 
-        return Mono.just(auth);
-    });
+            return Mono.just(auth);
+        })
+        .onErrorResume(e -> {
+            if (e instanceof TokenExpiredException) {
+                swe.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                return Mono.empty(); 
+            }
+            return Mono.error(e);
+        });
 }
 
 }

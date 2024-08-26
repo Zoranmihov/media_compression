@@ -10,6 +10,8 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
+import org.springframework.http.HttpMethod;
+
 
 @Configuration
 @EnableWebFluxSecurity
@@ -29,6 +31,9 @@ public class SecurityConfig {
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         ServerHttpSecurity.AuthorizeExchangeSpec authorizeExchange = http
             .authorizeExchange();
+
+        // TODO remove for production 
+        authorizeExchange.pathMatchers(HttpMethod.OPTIONS).permitAll();
 
         // Configure public routes
         routeConfig.getPublicRoutes().forEach((service, routes) -> {
