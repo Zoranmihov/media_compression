@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { fetchData } from "../../../utils/fetchUtil";
-import { requireGuest } from "@/utils/routeGuard";
+import { requireGuest } from "@/utils/routeGuards";
 
 const Login = () => {
     const canRender = requireGuest();

@@ -1,0 +1,84 @@
+.admin-component-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.user-search-box {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-search-input {
+    width: 100%;
+    max-width: 350px;
+    outline: none;
+    border: none;
+    border-bottom: 1px solid white;
+    padding-left: 2px;
+    background-color: inherit;
+    margin-right: 16px;
+    font-size: 22px;
+    margin-top: 16px;
+    color: white;
+}
+
+.user-search-box  input::placeholder {
+    color: white;
+  }
+
+  .foundUsers {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 40px;
+    color: white;
+    font-size: 24px;
+  }
+
+  .foundUsers ul {
+    list-style: none;
+    padding: 0 4px;
+    text-align: center;
+  }
+
+  .found-user {
+    cursor: pointer;
+    border-bottom: 2px solid #3adcea;
+    margin-bottom: 18px;
+  }
+
+
+  @media only screen and (max-width: 630px) {
+
+    .user-search-box  {
+        flex-direction: column;
+        justify-content: center;
+        width: 350px;
+        margin: 20px auto;
+    }
+
+    .user-search-box button,
+    .user-search-box input {
+        margin: 0;
+        width: 100%;
+    }
+
+    .user-search-box button {
+        margin-top: 20px;
+    }
+  }
+
+  @media only screen and (max-width: 360px) {
+    .user-search-box {
+        width: 99%;
+        padding: 0 10px;
+    }
+
+    .user-search-box button,
+    .user-search-box input {
+        font-size: 16px;
+    }
+  }

@@ -29,3 +29,7 @@
     color: white;
 }
 
+.main-nav a:hover,
+.main-nav p:hover {
+  color: #3adcea
+}

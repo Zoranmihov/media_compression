@@ -2,6 +2,20 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { useEffect } from 'react';
 
+export function requireAdmin() {
+  const { user, loading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user?.role !== 'ADMIN') {
+      router.push('/');
+    }
+  }, [user?.role, loading, router]);
+
+  return user?.role === 'ADMIN';
+}
+
+
 export function requireAuth() {
   const { user, loading } = useUser();
   const router = useRouter();

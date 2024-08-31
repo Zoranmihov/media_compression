@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useForm } from "react-hook-form";
 import { fetchData } from "@/utils/fetchUtil";
-import { requireGuest } from "@/utils/routeGuard";
+import { requireGuest } from "@/utils/routeGuards";
 
 
 

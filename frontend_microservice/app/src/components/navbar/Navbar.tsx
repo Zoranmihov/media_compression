@@ -1,6 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { returnLogoSVG } from '@/utils/returnLogoSVG'
 import Link from "next/link"
 import Image from 'next/image'
 import "./nav.css"
@@ -42,12 +43,7 @@ const Navbar = () => {
     return (
         <nav className="main-nav">
             <div className="logo">
-                <Image
-                    src={`logo-light.svg`}
-                    width={40}
-                    height={40}
-                    alt="Logo"
-                />
+                {returnLogoSVG()}
             </div>
             <div className="links">
                 <Link className={`link ${pathname === '/' ? 'active-nav-link' : ''}`} href="/">Dashboard</Link>

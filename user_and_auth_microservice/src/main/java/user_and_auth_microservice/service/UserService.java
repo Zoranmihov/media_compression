@@ -8,6 +8,12 @@ import user_and_auth_microservice.model.Role;
 import user_and_auth_microservice.model.User;
 import user_and_auth_microservice.repository.UserRepository;
 import user_and_auth_microservice.utils.PasswordUtil;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -148,6 +154,35 @@ public class UserService {
         }
 
     }
+
+    public PaginatedUserSearchResponseDTO searchUsers(UserSearchRequestDTO request) {
+        // Perform the search operation based on the search term and pagination parameters
+        Page<User> usersPage = userRepository.findBySearchTerm(
+            request.searchTerm(), 
+            PageRequest.of(request.page(), request.size())
+        );
+    
+        // Map the result to a list of UserSearchResponseDTO
+        List<UserSearchResponseDTO> userDTOs = usersPage.getContent().stream()
+            .map(user -> UserSearchResponseDTO.builder()
+                .id(user.getId())  // Assuming id is a String in User, no need for .toString()
+                .displayName(user.getDisplayName())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole().name())  // Convert Role enum to String using .name()
+                .build())
+            .collect(Collectors.toList());
+    
+        // Return the paginated response DTO
+        return PaginatedUserSearchResponseDTO.builder()
+            .content(userDTOs)
+            .page(usersPage.getNumber())
+            .size(usersPage.getSize())
+            .totalElements(usersPage.getTotalElements())
+            .totalPages(usersPage.getTotalPages())
+            .last(usersPage.isLast())
+            .build();
+    }    
 
     private void blacklistLogin(String email, String username) {
         blacklistService.blacklistByLogin(email);

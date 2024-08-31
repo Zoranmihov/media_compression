@@ -5,11 +5,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import user_and_auth_microservice.dtos.LoginDTO;
+import user_and_auth_microservice.dtos.PaginatedUserSearchResponseDTO;
 import user_and_auth_microservice.dtos.RegisterDTO;
 import user_and_auth_microservice.dtos.RegisterResponseDTO;
 import user_and_auth_microservice.dtos.UpdateRoleDTO;
 import user_and_auth_microservice.dtos.UpdateUserDTO;
 import user_and_auth_microservice.dtos.UserDTO;
+import user_and_auth_microservice.dtos.UserSearchRequestDTO;
 import user_and_auth_microservice.service.UserAuthProviderService;
 import user_and_auth_microservice.service.UserService;
 
@@ -145,6 +147,20 @@ public class AuthController {
 
         return ResponseEntity.ok().body("User was updated");
     }
+
+    @PostMapping("/searchusers")
+public ResponseEntity<PaginatedUserSearchResponseDTO> searchUsers(
+        @RequestBody UserSearchRequestDTO searchRequest,
+        HttpServletRequest request) {
+
+    String senderId = request.getHeader("UserId");
+
+    userService.ValidateUser(senderId, null);
+
+    PaginatedUserSearchResponseDTO searchResult = userService.searchUsers(searchRequest);
+
+    return ResponseEntity.ok().body(searchResult);
+}
 
     @GetMapping("/logout")
     public ResponseEntity<String> logout(HttpServletResponse response) {

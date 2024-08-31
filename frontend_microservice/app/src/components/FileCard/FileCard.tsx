@@ -7,8 +7,8 @@ const FileCard = ({ file, onRemove, onCompress }) => {
     const [preview, setPreview] = useState("");
     const [isCompressing, setIsCompressing] = useState(false);
     const [downloadUrl, setDownloadUrl] = useState("");
-    const [isSavedToCloud, setIsSavedToCloud] = useState(false); // Track cloud save status
-    const [compressionInfo, setCompressionInfo] = useState(null); // Track compression info
+    const [isSavedToCloud, setIsSavedToCloud] = useState(false);
+    const [compressionInfo, setCompressionInfo] = useState(null);
 
     useEffect(() => {
         const generatePreview = () => {
@@ -32,7 +32,6 @@ const FileCard = ({ file, onRemove, onCompress }) => {
 
         generatePreview();
 
-        // Cleanup function to revoke the object URL when the component unmounts or the file changes
         return () => {
             if (preview) {
                 URL.revokeObjectURL(preview);
@@ -47,46 +46,54 @@ const FileCard = ({ file, onRemove, onCompress }) => {
         const endpoint = file.type.startsWith("image/") ? "/api/compress/image/" : "/api/compress/video/";
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("quality", quality); // You can adjust the quality dynamically
+        formData.append("quality", quality);
     
         try {
-            const response = await fetch("http://localhost:8082" + endpoint, {
+            const response = await fetch("http://localhost:8080" + endpoint, {
                 method: "POST",
                 body: formData,
+                credentials: "include",
+                headers: {
+                    'Authorization': `Bearer ${user.token}`,
+                }
             });
     
             if (response.ok) {
                 const { task_id } = await response.json();
     
-                // WebSocket connection to listen for status updates
-                const ws = new WebSocket(`http://localhost:8082/ws/compress/status/${task_id}`);
+                const ws = new WebSocket(`ws://localhost:8082/ws/compress/status/${task_id}?token=${user.token}`);
     
                 ws.onmessage = async (event) => {
                     const message = JSON.parse(event.data);
     
                     if (message.state === "SUCCESS") {
-                        const downloadResponse = await fetch(`http://localhost:8082/api/compress/downloadmedia/${task_id}`);
+                        const downloadResponse = await fetch(`http://localhost:8080/api/compress/downloadmedia/${task_id}`, {
+                            credentials: "include",
+                            headers: {
+                                'Authorization': `Bearer ${user.token}`, 
+                            }
+                        });
                         const blob = await downloadResponse.blob();
                         const url = URL.createObjectURL(blob);
     
                         if (file.type.startsWith("video/")) {
-                            generateVideoThumbnail(url);  // Generate thumbnail for video
+                            generateVideoThumbnail(url);  
                         } else {
-                            setPreview(url); // Update the preview with the new image file
+                            setPreview(url);
                         }
     
                         setDownloadUrl(url);
-                        
-                        const originalSizeMB = (message.original_size / (1024 * 1024)).toFixed(2); // Convert bytes to MB
-                        const compressedSizeMB = (message.compressed_size / (1024 * 1024)).toFixed(2); // Convert bytes to MB
+    
+                        const originalSizeMB = (message.original_size / (1024 * 1024)).toFixed(2);
+                        const compressedSizeMB = (message.compressed_size / (1024 * 1024)).toFixed(2);
                         const sizeReduction = (((message.original_size - message.compressed_size) / message.original_size) * 100).toFixed(2);
-
+    
                         setCompressionInfo({
                             originalSizeMB,
                             compressedSizeMB,
                             sizeReduction,
                         });
-
+    
                         ws.close();
                         setIsCompressing(false);
                     } else if (message.state === "FAILURE") {
@@ -104,20 +111,20 @@ const FileCard = ({ file, onRemove, onCompress }) => {
             setIsCompressing(false);
         }
     };
+    
 
     const handleSaveToCloud = () => {
-        // Implement your save to cloud logic here
         console.log("Saving to cloud...");
-        setIsSavedToCloud(true); // Update state to indicate the file has been saved to the cloud
+        setIsSavedToCloud(true);
     };
     
     const generateVideoThumbnail = (videoUrl) => {
         const video = document.createElement('video');
         video.src = videoUrl;
-        video.crossOrigin = "anonymous"; // Ensure the video is accessible for canvas rendering
+        video.crossOrigin = "anonymous"; 
     
         video.addEventListener('loadeddata', () => {
-            video.currentTime = 2; // Capture the thumbnail at the 2-second mark
+            video.currentTime = 2; 
         });
     
         video.addEventListener('seeked', () => {
@@ -128,11 +135,10 @@ const FileCard = ({ file, onRemove, onCompress }) => {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
             const imgDataUrl = canvas.toDataURL('image/png');
-            setPreview(imgDataUrl); // Set the thumbnail as the preview image
+            setPreview(imgDataUrl);
         });
     };
 
-    // Helper function to format file size
     const formatFileSize = (size) => {
         if (size >= 1073741824) { 
             return `${(size / 1073741824).toFixed(2)} GB`;
@@ -145,7 +151,6 @@ const FileCard = ({ file, onRemove, onCompress }) => {
         }
     };
 
-    // Function to remove the file extension
     const removeFileExtension = (fileName) => {
         return fileName.replace(/\.[^/.]+$/, "");
     };

@@ -1,8 +1,29 @@
+.profile-sub-menu {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-sub-menu a {
+  flex: 1;
+  text-align: center;
+  border-bottom: 2px solid #3adcea;
+  padding: 8px 0;
+}
+
+.profile-sub-menu a:hover {
+  background-color: #3adcea;
+}
+
+
 .profile-container {
-    flex: 1;
+    margin: 15% auto;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: #9c20f5;
+    box-shadow: 10px 10px 20px #40006e79;
+    padding: 10px;
 }
 
 .profile-info-container {
@@ -84,3 +105,8 @@
     flex-direction: column;
   }
   
+  @media only screen and (max-width: 616px) {
+    .profile-info-field {
+      width: 99%;
+    }
+  }

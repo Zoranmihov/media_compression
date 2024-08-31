@@ -9,3 +9,4 @@ protected:
     - /api/user/logout
   ADMIN:
     - /api/user/updaterole
+    - /api/user/searchusers
