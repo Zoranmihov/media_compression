@@ -2,9 +2,9 @@ version: '3.8'
 
 services:
   token_blacklist_redis:
-      extends: 
-        file: gateway_microservice/docker-compose.gateway_microservice.yml
-        service: token_blacklist_redis
+    extends: 
+      file: gateway_microservice/docker-compose.gateway_microservice.yml
+      service: token_blacklist_redis
 
   gateway_microservice:
     extends: 
@@ -21,5 +21,26 @@ services:
       file: user_and_auth_microservice/docker-compose.user_and_auth_microservice.yml
       service: user_and_auth_microservice
 
+  frontend_microservice:
+    extends:
+      file: frontend_microservice/docker-compose.yml
+      service: frontend_microservice
+
+  compressing_service:
+    extends:
+      file: compressing_microservice/docker-compose.yml
+      service: compressing_service
+
+  compressing_service_redis:
+    extends:
+      file: compressing_microservice/docker-compose.yml
+      service: compressing_service_redis
+
+  compressing_service_celery:
+    extends:
+      file: compressing_microservice/docker-compose.yml
+      service: compressing_service_celery
+
 volumes:
   user_db_data:
+  compressing_service_shared_data:

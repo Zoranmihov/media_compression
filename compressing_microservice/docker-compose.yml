@@ -1,33 +1,33 @@
 version: '3.8'
 
 services:
-  compressing_microservice:
+  compressing_service_redis:
+    image: "redis:alpine"
+    container_name: compressing-service-redis
+
+  compressing_service_celery:
     build: .
-    container_name: compressing-microservice
+    command: celery -A service.tasks worker --loglevel=info
+    container_name: compressing-service-celery
     volumes:
-      - shared_data:/shared_data
+      - compressing_service_shared_data:/shared_data
+      # Remove for production
+      - ./app:/app
+    depends_on:
+      - compressing_service_redis
+
+  compressing_service:
+    build: .
+    container_name: compressing-service
+    volumes:
+      - compressing_service_shared_data:/shared_data
       # Remove for production
       - ./app:/app
     ports:
       - 8082:8082
     depends_on:
-      - redis
-      - celery
-
-  redis:
-    image: "redis:alpine"
-    container_name: compressing-microservice-redis
-
-  celery:
-    build: .
-    command: celery -A service.tasks worker --loglevel=info
-    container_name: compressing-microservice-celery
-    volumes:
-      - shared_data:/shared_data
-      # Remove for production
-      - ./app:/app
-    depends_on:
-      - redis
+      - compressing_service_redis
+      - compressing_service_celery
 
 volumes:
-  shared_data:
+  compressing_service_shared_data:
