@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  file_storage_microservice_mongodb:
+    image: mongo:4.4
+    container_name: file_storage_microservice_mongodb
+    networks:
+      - file_storage_microservice_backend
+    ports:
+      - "27017:27017"
+    volumes:
+      - file_storage_microservice_mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    command: mongod --bind_ip_all
+    ulimits:
+      nofile:
+        soft: 64000
+        hard: 64000
+
+  file_storage_microservice_minio:
+    image: minio/minio
+    container_name: file-storage-microservice-minio
+    networks:
+      - file_storage_microservice_backend
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - file_storage_microservice_minio_data:/data
+    environment:
+      MINIO_ROOT_USER: root
+      MINIO_ROOT_PASSWORD: root1234
+    command: server /data --console-address ":9001"
+
+  file_storage_microservice_fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: file_storage_microservice_fastapi
+    networks:
+      - file_storage_microservice_backend
+    ports:
+      - "8084:8084"
+    depends_on:
+      - file_storage_microservice_mongodb
+      - file_storage_microservice_minio
+      - file_storage_microservice_redis
+    environment:
+      MONGO_URI: "mongodb://root:example@file_storage_microservice_mongodb:27017/"
+      MINIO_ENDPOINT: "http://file_storage_microservice_minio:9000"
+      MINIO_ACCESS_KEY: "root"
+      MINIO_SECRET_KEY: "root1234"
+
+  file_storage_microservice_redis:
+    image: redis:alpine
+    container_name: file_storage_microservice_redis
+    networks:
+      - file_storage_microservice_backend
+
+  file_storage_microservice_celery_worker:
+    build:
+      context: .
+    command: celery -A tasks worker --loglevel=info
+    user: appuser
+    depends_on:
+      - file_storage_microservice_redis
+      - file_storage_microservice_fastapi
+    networks:
+      - file_storage_microservice_backend
+
+networks:
+  file_storage_microservice_backend:
+
+volumes:
+  file_storage_microservice_mongodb_data:
+  file_storage_microservice_minio_data:

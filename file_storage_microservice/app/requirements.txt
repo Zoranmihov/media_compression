@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+pymongo
+minio
+python-multipart
+celery[redis]
