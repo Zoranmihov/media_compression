@@ -1,0 +1,16 @@
+public:
+  - /ws/storage/**
+ 
+protected:
+  USER:
+    - /api/storage/savefile/
+    - /api/storage/getfile/**
+    - /api/storage/updatefilename/
+    - /api/storage/deletefile/**
+    - /api/storage/deleteuserfiles/
+    - /api/storage/getuserfiles/
+  ADMIN:
+    - /admin/docs
+    - /admin/docs/**
+    - /admin/redoc
+    - /admin/redoc/**

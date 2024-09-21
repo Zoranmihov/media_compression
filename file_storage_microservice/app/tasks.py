@@ -1,99 +1,125 @@
 from celery_app import celery_app
+from celery import chord
 from pymongo import MongoClient
 from minio import Minio
 from minio.error import S3Error
 import io
 from pymongo.errors import PyMongoError
+import redis
+from datetime import datetime  
+from pymediainfo import MediaInfo  
+import tempfile  
 
-# Store active multipart upload sessions
-multipart_sessions = {}
 
-# Task to process and upload file chunks using multipart upload
+# Track parts uploaded in Redis
+redis_client = redis.Redis(host="file_storage_microservice_redis", port=6379, db=0)
+
+# Process and upload each chunk to MinIO
 @celery_app.task(bind=True, autoretry_for=(S3Error,), retry_backoff=True, max_retries=3)
-def process_chunk(self, user_id, file_id, filename, chunk, content_type, part_number):
+def process_chunk(self, user_id, file_id, filename, chunk, content_type, part_number, total_parts):
     try:
-        # Initialize MinIO client
         minio_client = Minio(
             "file-storage-microservice-minio:9000",
             access_key="root",
             secret_key="root1234",
             secure=False
         )
-
         bucket_name = f"user-bucket-{user_id}"
 
         if not minio_client.bucket_exists(bucket_name):
             minio_client.make_bucket(bucket_name)
 
-        # Initiate a multipart upload if not already initiated
-        if file_id not in multipart_sessions:
-            upload_id = minio_client.create_multipart_upload(bucket_name, file_id, content_type=content_type).upload_id
-            multipart_sessions[file_id] = upload_id
-        else:
-            upload_id = multipart_sessions[file_id]
-
-        # Upload the chunk as a part using the part number
+        # Upload the chunk
+        chunk_name = f"{file_id}_part_{part_number}"
         chunk_stream = io.BytesIO(chunk)
-        minio_client.upload_part(
+        minio_client.put_object(
             bucket_name,
-            file_id,
-            upload_id,
-            part_number,  # Each part must have a unique part number
-            chunk_stream,
-            length=len(chunk)
+            chunk_name,
+            data=chunk_stream,
+            length=len(chunk),
+            content_type=content_type
         )
 
+        # Track uploaded parts in Redis
+        redis_client.incr(f"{file_id}_parts_uploaded")
+
+        return f"Chunk {part_number} uploaded for {file_id}"
+
     except Exception as exc:
-        print(f"Error while processing chunk: {exc}")
+        print(f"Error processing chunk {part_number}: {exc}")
         raise self.retry(exc=exc)
 
-# Task to finalize the multipart upload by combining all parts
-@celery_app.task(autoretry_for=(S3Error,), retry_backoff=True, max_retries=3)
-def finalize_upload(user_id, file_id, filename, total_size, content_type):
+@celery_app.task(bind=True, autoretry_for=(S3Error,), retry_backoff=True, max_retries=3)
+def finalize_upload(self, result, user_id, file_id, filename, total_parts, content_type, thumbnail_url=None):
     try:
-        # Set up MongoDB client
-        client = MongoClient("mongodb://root:example@file_storage_microservice_mongodb:27017/")
-        db = client["filedb"]
-
-        bucket_name = f"user-bucket-{user_id}"
-
-        # Set up MinIO client
         minio_client = Minio(
             "file-storage-microservice-minio:9000",
             access_key="root",
             secret_key="root1234",
             secure=False
         )
+        bucket_name = f"user-bucket-{user_id}"
 
-        # Get the upload session
-        upload_id = multipart_sessions.get(file_id)
-        if not upload_id:
-            raise Exception(f"No active upload session for file: {file_id}")
+        # Check Redis state
+        parts_uploaded = int(redis_client.get(f"{file_id}_parts_uploaded") or 0)
+        print(f"Redis state - Parts uploaded: {parts_uploaded}, Expected: {total_parts}")
+        if parts_uploaded != total_parts:
+            raise Exception(f"Not all parts uploaded: {parts_uploaded}/{total_parts}")
 
-        # Complete the multipart upload by combining all parts
-        parts = minio_client.list_parts(bucket_name, file_id, upload_id)
-        part_list = [{"PartNumber": part.part_number, "ETag": part.etag} for part in parts]
+        # Combine parts into a single file
+        sources = [f"{file_id}_part_{i}" for i in range(1, total_parts + 1)]
+        combined_stream = io.BytesIO(b"".join([minio_client.get_object(bucket_name, src).read() for src in sources]))
+        file_size = combined_stream.getbuffer().nbytes
 
-        minio_client.complete_multipart_upload(bucket_name, file_id, upload_id, part_list)
+        # Upload final file to MinIO
+        minio_client.put_object(
+            bucket_name,
+            file_id,
+            data=combined_stream,
+            length=file_size,
+            content_type=content_type
+        )
 
-        # Clean up multipart session data
-        del multipart_sessions[file_id]
+        # Clean up chunks
+        for src in sources:
+            try:
+                minio_client.remove_object(bucket_name, src)
+                print(f"Deleted chunk: {src}")
+            except Exception as exc:
+                print(f"Error removing chunk {src}: {exc}")
 
-        # Insert the final metadata into MongoDB
-        db.files.insert_one({
-            "user_id": user_id,
-            "file_id": file_id,
-            "filename": filename,
-            "bucket_name": bucket_name,
-            "content_type": content_type,
-            "size": total_size
-        })
+        # Store metadata and thumbnail in MongoDB
+        try:
+            client = MongoClient("mongodb://root:example@file_storage_microservice_mongodb:27017/")
+            db = client["filedb"]
+            metadata = {
+                "user_id": user_id,
+                "file_id": file_id,
+                "filename": filename,
+                "bucket_name": bucket_name,
+                "content_type": content_type,
+                "size": file_size,
+                "thumbnail_url": thumbnail_url, 
+                "upload_date": datetime.utcnow()
+            }
+            print("Inserting metadata into MongoDB:", metadata)
+            db.files.insert_one(metadata)
+            print(f"Metadata for file_id {file_id} inserted successfully into MongoDB.")
+        except PyMongoError as mongo_exc:
+            print(f"MongoDB insertion error: {mongo_exc}")
+            raise
+
+        # Clean up Redis tracking
+        redis_client.delete(f"{file_id}_parts_uploaded")
+        print(f"Redis tracking for file_id {file_id} cleaned up.")
+
+        return f"Final file {file_id} uploaded and parts cleaned up"
 
     except Exception as exc:
-        print(f"Error while finalizing upload: {exc}")
+        print(f"Error finalizing upload for file_id {file_id}: {exc}")
         raise self.retry(exc=exc)
-    
-# Task to fetch the file from MinIO using file_id
+
+# Fetch file from MinIO and stream it
 @celery_app.task(bind=True)
 def fetch_file(self, user_id, file_id):
     try:
@@ -204,7 +230,7 @@ def delete_all_user_files(self, user_id):
         for file_meta in files:
             # Use file_id as the object name to delete the file from MinIO
             minio_client.remove_object(file_meta['bucket_name'], file_meta['file_id'])
-        
+
         # Delete metadata for the user from MongoDB
         db.files.delete_many({"user_id": user_id})
 
@@ -218,3 +244,26 @@ def delete_all_user_files(self, user_id):
     except Exception as exc:
         print(f"An unexpected error occurred: {exc}")
         return {"status": "failure", "error": str(exc)}
+
+@celery_app.task(bind=True)
+def fetch_user_files_task(self, user_id):
+    try:
+        # MongoDB connection
+        mongo_client = MongoClient("mongodb://root:example@file_storage_microservice_mongodb:27017/")
+        db = mongo_client["filedb"]
+        files_collection = db["files"]
+
+        # Query MongoDB for the user's files
+        files = files_collection.find({"user_id": user_id})
+
+        # Convert the MongoDB cursor to a list of dictionaries
+        file_list = []
+        for file in files:
+            file["_id"] = str(file["_id"]) 
+            file_list.append(file)
+
+        return file_list
+
+    except Exception as e:
+        # Log and re-raise the exception for proper error handling
+        raise self.retry(exc=e, countdown=5, max_retries=3)

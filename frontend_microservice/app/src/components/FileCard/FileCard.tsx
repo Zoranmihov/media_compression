@@ -1,9 +1,11 @@
 "use client"
 
 import React, { useEffect, useState } from "react";
+import { useUser } from "@/context/UserContext";
 import "./FileCard.css";
 
 const FileCard = ({ file, onRemove, onCompress }) => {
+    const { user } = useUser();
     const [preview, setPreview] = useState("");
     const [isCompressing, setIsCompressing] = useState(false);
     const [downloadUrl, setDownloadUrl] = useState("");
@@ -49,7 +51,7 @@ const FileCard = ({ file, onRemove, onCompress }) => {
         formData.append("quality", quality);
     
         try {
-            const response = await fetch("http://localhost:8080" + endpoint, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}` + endpoint, {
                 method: "POST",
                 body: formData,
                 credentials: "include",
@@ -67,7 +69,7 @@ const FileCard = ({ file, onRemove, onCompress }) => {
                     const message = JSON.parse(event.data);
     
                     if (message.state === "SUCCESS") {
-                        const downloadResponse = await fetch(`http://localhost:8080/api/compress/downloadmedia/${task_id}`, {
+                        const downloadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/compress/downloadmedia/${task_id}`, {
                             credentials: "include",
                             headers: {
                                 'Authorization': `Bearer ${user.token}`, 
@@ -113,11 +115,46 @@ const FileCard = ({ file, onRemove, onCompress }) => {
     };
     
 
-    const handleSaveToCloud = () => {
-        console.log("Saving to cloud...");
-        setIsSavedToCloud(true);
+    const handleSaveToCloud = async () => {
+        if (!downloadUrl || !preview) {
+            console.error("No download URL or thumbnail available to save.");
+            return;
+        }
+    
+        try {
+            // Fetch the blob of the compressed file
+            const response = await fetch(downloadUrl);
+            const compressedBlob = await response.blob();
+    
+            // Create a new File object for the compressed file
+            const compressedFile = new File([compressedBlob], file.name, { type: file.type });
+    
+            // Create FormData instance and append fields
+            const formData = new FormData();
+            formData.append("file", compressedFile);
+            formData.append("thumbnail_url", preview);
+    
+            const saveResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/storage/savefile/`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${user.token}`, // Pass token in headers
+                },
+                body: formData, // Pass FormData instance as body
+            });
+    
+            if (saveResponse.ok) {
+                const data = await saveResponse.json();
+                console.log("File saved to cloud:", data);
+                setIsSavedToCloud(true);
+            } else {
+                console.error("Failed to save file to cloud:", saveResponse.statusText);
+            }
+        } catch (error) {
+            console.error("An error occurred while saving to the cloud:", error);
+        }
     };
     
+        
     const generateVideoThumbnail = (videoUrl) => {
         const video = document.createElement('video');
         video.src = videoUrl;

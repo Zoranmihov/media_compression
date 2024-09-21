@@ -4,3 +4,4 @@ pymongo
 minio
 python-multipart
 celery[redis]
+pymediainfo

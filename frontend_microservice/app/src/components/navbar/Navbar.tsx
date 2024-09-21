@@ -15,7 +15,7 @@ const Navbar = () => {
 
     const handleLogout = async () => {
         try {
-            const response = await fetch('http://localhost:8080/api/user/logout', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user/logout`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${user.token}` // Include the Authorization header

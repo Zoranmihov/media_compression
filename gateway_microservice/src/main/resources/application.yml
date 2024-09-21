@@ -15,13 +15,48 @@ spring:
         uri: http://user-and-auth-microservice:8081
         predicates:
         - Path=/api/user/**
-        
+      
+      - id: compressing-service
+        uri: http://compressing-service:8082
+        predicates:
+        - Path=/api/compress/**
+      
+      - id: compressing-service-websocket
+        uri: ws://compressing-service:8082
+        predicates:
+        - Path=/ws/compress/status/**
+        - Header=Connection, Upgrade
+        - Header=Upgrade, websocket
+
+      - id: file-storage-service
+        uri: http://file-storage-microservice-fastapi:8084
+        predicates:
+        - Path=/api/storage/**
+      
+      - id: file-storage-service-websocket
+        uri: ws://file-storage-microservice-fastapi:8084
+        predicates:
+        - Path=/ws/storage/**
+        - Header=Connection, Upgrade
+        - Header=Upgrade, websocket
+
+      # Route for static assets (JavaScript, CSS, fonts, etc.)
+      - id: frontend-static-assets
+        uri: http://frontend-microservice:3000
+        predicates:
+        - Path=/_next/static/**,/static/**,/favicon.ico
+
+      # Catch-all route for anything that is not /api or /ws
+      - id: frontend-service
+        uri: http://frontend-microservice:3000
+        predicates:
+          - Path=/{path:^(?!api|ws).*}, /**
+
 logging:
   level:
     org:
       springframework:
         security: DEBUG
-
 
 server:
   port: 8080
@@ -36,4 +71,3 @@ management:
   endpoint:
     health:
       show-details: always
-

@@ -1,0 +1,22 @@
+.myvids {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.myvids-container {
+    width: 80%;
+}
+
+.myfiles-container { 
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-top: 20px;
+}
+
+.myvids-container h1 {
+    text-align: center;
+    color: white;
+}

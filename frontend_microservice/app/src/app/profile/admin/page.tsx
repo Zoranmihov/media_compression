@@ -42,7 +42,7 @@ const Admin = () => {
 
     const fetchUserData = async (searchTerm, page = 0, size = 20) => {
         try {
-            const response = await fetch('http://localhost:8080/api/user/searchusers', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user/searchusers`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

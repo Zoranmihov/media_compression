@@ -5,8 +5,8 @@ import os
 
 celery_app = Celery(
     'tasks',
-    broker='redis://redis:6379/0',
-    backend='redis://redis:6379/0'
+    broker='redis://compressing_service_redis:6379/0',
+    backend='redis://compressing_service_redis:6379/0'
 )
 
 celery_app.conf.update(

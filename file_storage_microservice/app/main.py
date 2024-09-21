@@ -1,11 +1,12 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, WebSocket, WebSocketDisconnect, Header
 from fastapi.responses import StreamingResponse
-from tasks import process_chunk, finalize_upload, fetch_file, update_file_name_in_mongodb, delete_file, delete_all_user_files
+from tasks import process_chunk, finalize_upload, fetch_file, update_file_name_in_mongodb, delete_file, delete_all_user_files, fetch_user_files_task
 import io
-from model.user_model import create_user_collection_with_schema
 import uuid
 from minio import Minio
-
+from celery import chord
+from celery.result import AsyncResult
+import asyncio
 
 
 app = FastAPI(
@@ -16,37 +17,33 @@ app = FastAPI(
     redoc_url=None
 )
 
-@app.on_event("startup")
-async def startup_event():
-    create_user_collection_with_schema()
-
 # WebSockets
 
-# Dictionary to store WebSocket connections per user
+# WebSocket connections
 active_connections = {}
 
 @app.websocket("/ws/storage/upload/{user_id}/{file_id}")
 async def websocket_upload(websocket: WebSocket, user_id: str, file_id: str):
     await websocket.accept()
-    
-    # Add the WebSocket connection for the specific user
+
+    # Store the WebSocket connection for the specific user
     if user_id not in active_connections:
         active_connections[user_id] = []
     active_connections[user_id].append(websocket)
-    
+
     try:
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
         # Remove WebSocket on disconnect
         active_connections[user_id].remove(websocket)
-        if not active_connections[user_id]:  # Clean up if no connections are left
+        if not active_connections[user_id]:
             del active_connections[user_id]
 
 @app.websocket("/ws/storage/deletefiles/{user_id}")
 async def websocket_delete_files(websocket: WebSocket, user_id: str):
     await websocket.accept()
-    
+
     if user_id not in active_connections:
         active_connections[user_id] = []
     active_connections[user_id].append(websocket)
@@ -61,43 +58,72 @@ async def websocket_delete_files(websocket: WebSocket, user_id: str):
             del active_connections[user_id]
 
 #Rest API
-
 @app.post("/api/storage/savefile/")
-async def upload_file(user_id: str = Form(...), file: UploadFile = File(...)):
+async def upload_file(
+    file: UploadFile = File(...),
+    thumbnail_url: str = Form(None), 
+    UserId: str = Header(None), 
+):
+    if not UserId:
+        raise HTTPException(status_code=400, detail="UserId header is missing.")
+
     file_id = str(uuid.uuid4())
     total_size = 0
     part_number = 1
-    
+    total_parts = 0
+    tasks = [] 
+
+    # Start with a default chunk size
+    initial_chunk_size = 1024 * 1024 
+
     try:
-        # Stream the file content in chunks
         while True:
-            chunk = await file.read(1024 * 1024)  # Read in 1MB chunks
+            # Read chunks of 1MB, and dynamically adjust based on previous chunk sizes
+            chunk = await file.read(initial_chunk_size)
             if not chunk:
                 break
+
             total_size += len(chunk)
-            
-            # Notify specific user's WebSocket connections about chunk upload
-            if user_id in active_connections:
-                for ws in active_connections[user_id]:
+            total_parts += 1
+
+            # Dynamically adjust chunk size
+            if total_size > 10 * 1024 * 1024: 
+                initial_chunk_size = 1024 * 1024 * 2 
+
+            # Notify WebSocket connections about chunk upload
+            if UserId in active_connections:
+                for ws in active_connections[UserId]:
                     await ws.send_json({"message": f"Uploading part {part_number}", "file_id": file_id})
-                    
-            process_chunk.delay(user_id, file_id, file.filename, chunk, file.content_type, part_number)
+
+            # Add chunk upload tasks to the list
+            tasks.append(process_chunk.s(UserId, file_id, file.filename, chunk, file.content_type, part_number, total_parts))
             part_number += 1
-        
-        # Notify when upload is complete
-        finalize_upload.delay(user_id, file_id, file.filename, total_size, file.content_type)
-        if user_id in active_connections:
-            for ws in active_connections[user_id]:
-                await ws.send_json({"message": "Upload completed", "file_id": file_id})
-        
+
+        # Finalize task
+        task_group = chord(tasks)(
+            finalize_upload.s(UserId, file_id, file.filename, total_parts, file.content_type, thumbnail_url)
+        )
+
+        # Background task to check Celery task state and notify WebSocket
+        @app.on_event("startup")
+        async def check_task_status():
+            while True:
+                result = AsyncResult(task_group.id)
+                if result.ready():
+                    if UserId in active_connections:
+                        for ws in active_connections[UserId]:
+                            await ws.send_json({"message": "Upload complete", "file_id": file_id})
+                    break
+                await asyncio.sleep(2)  
+
         return {"file_id": file_id, "status": "File is being processed"}
-    
+
     except Exception as e:
-        if user_id in active_connections:
-            for ws in active_connections[user_id]:
+        if UserId in active_connections:
+            for ws in active_connections[UserId]:
                 await ws.send_json({"message": f"Upload failed: {str(e)}", "file_id": file_id})
         raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
-
+    
 @app.get("/api/storage/getfile/{file_id}")
 async def get_file(user_id: str, file_id: str, request: Request):
     task = fetch_file.delay(user_id, file_id)
@@ -114,7 +140,7 @@ async def get_file(user_id: str, file_id: str, request: Request):
         # Stream file using range requests
         def file_stream():
             response = minio_client.get_object(result["bucket_name"], result["object_name"])
-            for chunk in response.stream(1024 * 1024):  # Stream in 1MB chunks
+            for chunk in response.stream(1024 * 1024): 
                 yield chunk
 
         return StreamingResponse(
@@ -126,38 +152,72 @@ async def get_file(user_id: str, file_id: str, request: Request):
         raise HTTPException(status_code=404, detail=result["message"])
     
 @app.put("/api/storage/updatefilename/")
-async def update_file_name_endpoint(user_id: str = Form(...), file_id: str = Form(...), new_filename: str = Form(...)):
+async def update_file_name_endpoint(
+    file_id: str = Form(...),
+    new_filename: str = Form(...),
+    UserId: str = Header(None) 
+):
+    if not UserId:
+        raise HTTPException(status_code=400, detail="UserId header is missing.")
+
     try:
         # Trigger the Celery task to update the file name in MongoDB
-        task = update_file_name_in_mongodb.delay(user_id, file_id, new_filename)
+        task = update_file_name_in_mongodb.delay(UserId, file_id, new_filename)
 
-        return {"task_id": task.id, "status": "File name is being updated", "file_id": file_id, "new_filename": new_filename}
+        return {
+            "task_id": task.id,
+            "status": "File name is being updated",
+            "file_id": file_id,
+            "new_filename": new_filename,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File name update failed: {str(e)}")
-
+    
 @app.delete("/api/storage/deletefile/{file_id}")
-async def delete_specific_file(user_id: str, file_id: str):
-    task = delete_file.delay(user_id, file_id)
-    result = task.get(timeout=10)
+async def delete_specific_file(file_id: str, UserId: str = Header(None)):
+    if not UserId:
+        raise HTTPException(status_code=400, detail="UserId header is missing.")
 
-    if result["status"] == "success":
-        return {"message": result["message"]}
-    else:
-        raise HTTPException(status_code=404, detail=result["message"])
+    try:
+        # Trigger the Celery task to delete the file
+        task = delete_file.delay(UserId, file_id)
 
+        # Wait for the task to complete and get the result
+        result = task.get(timeout=10)
+
+        if result["status"] == "success":
+            return {
+                "task_id": task.id,
+                "status": "File deletion is successful",
+                "file_id": file_id,
+                "message": result["message"],
+            }
+        else:
+            raise HTTPException(status_code=404, detail=result["message"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred while deleting the file: {str(e)}")
+ 
 @app.delete("/api/storage/deleteuserfiles/")
 async def delete_user_files(user_id: str):
     try:
         # Start the Celery task for file deletion
         task = delete_all_user_files.delay(user_id)
 
-        # Notify the user via WebSocket
+        # Notify the user via WebSocket that the deletion is in progress
         if user_id in active_connections:
             for ws in active_connections[user_id]:
                 await ws.send_json({"message": "File deletion in progress", "user_id": user_id})
 
-        result = task.get(timeout=10)
+        # Continuously check the status of the task and update the WebSocket
+        while not task.ready():
+            if user_id in active_connections:
+                for ws in active_connections[user_id]:
+                    await ws.send_json({"message": "File deletion is still in progress", "user_id": user_id})
+            await asyncio.sleep(2) 
 
+        result = task.get()
+
+        # After task completion, notify the user via WebSocket
         if result["status"] == "success":
             if user_id in active_connections:
                 for ws in active_connections[user_id]:
@@ -166,7 +226,7 @@ async def delete_user_files(user_id: str):
         else:
             if user_id in active_connections:
                 for ws in active_connections[user_id]:
-                    await ws.send_json({"message": f"Deletion failed: {result['message']}", "user_id": user_id})
+                    await ws.send_json({"message": f"Deletion failed: {result['error']}", "user_id": user_id})
             raise HTTPException(status_code=404, detail=result["message"])
 
     except Exception as e:
@@ -174,4 +234,20 @@ async def delete_user_files(user_id: str):
             for ws in active_connections[user_id]:
                 await ws.send_json({"message": f"Deletion failed: {str(e)}", "user_id": user_id})
         raise HTTPException(status_code=500, detail=f"Deletion failed: {str(e)}")
+    
+@app.get("/api/storage/getuserfiles/", response_model=list)
+async def get_user_files(userid: str = Header(...)):
+    try:
+        # Trigger Celery task to fetch user files
+        task = fetch_user_files_task.delay(userid)
+        result = AsyncResult(task.id)
+        result_data = result.get(timeout=10) 
 
+        if result.state == "SUCCESS":
+            return result_data
+        elif result.state == "FAILURE":
+            raise HTTPException(status_code=500, detail=f"Task failed: {result.info}")
+        else:
+            raise HTTPException(status_code=202, detail="Task is still in progress")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching user files: {str(e)}")

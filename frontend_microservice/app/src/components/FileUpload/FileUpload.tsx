@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import "./FileUpload.css";
-import FileCard from "../FileCard/FileCard";
+import FileCard from "@/components/FileCard/FileCard";
 
 const FileUpload = () => {
     const [files, setFiles] = useState([]);

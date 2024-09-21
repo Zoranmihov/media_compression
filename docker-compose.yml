@@ -5,42 +5,99 @@ services:
     extends: 
       file: gateway_microservice/docker-compose.gateway_microservice.yml
       service: token_blacklist_redis
+    networks:
+      - app_network
 
   gateway_microservice:
     extends: 
       file: gateway_microservice/docker-compose.gateway_microservice.yml
       service: gateway_microservice
+    networks:
+      - app_network
 
   user_db:
     extends:
       file: user_and_auth_microservice/docker-compose.user_and_auth_microservice.yml
       service: user_db
+    networks:
+      - app_network
 
   user_and_auth_microservice:
     extends:
       file: user_and_auth_microservice/docker-compose.user_and_auth_microservice.yml
       service: user_and_auth_microservice
+    networks:
+      - app_network
 
   frontend_microservice:
     extends:
       file: frontend_microservice/docker-compose.yml
       service: frontend_microservice
+    networks:
+      - app_network
 
   compressing_service:
     extends:
       file: compressing_microservice/docker-compose.yml
       service: compressing_service
+    networks:
+      - app_network
 
   compressing_service_redis:
     extends:
       file: compressing_microservice/docker-compose.yml
       service: compressing_service_redis
+    networks:
+      - app_network
 
   compressing_service_celery:
     extends:
       file: compressing_microservice/docker-compose.yml
       service: compressing_service_celery
+    networks:
+      - app_network
+
+  file_storage_microservice_mongodb:
+    extends:
+      file: file_storage_microservice/docker-compose.yml
+      service: file_storage_microservice_mongodb
+    networks:
+      - app_network
+
+  file_storage_microservice_minio:
+    extends:
+      file: file_storage_microservice/docker-compose.yml
+      service: file_storage_microservice_minio
+    networks:
+      - app_network
+
+  file_storage_microservice_fastapi:
+    extends:
+      file: file_storage_microservice/docker-compose.yml
+      service: file_storage_microservice_fastapi
+    networks:
+      - app_network
+
+  file_storage_microservice_redis:
+    extends:
+      file: file_storage_microservice/docker-compose.yml
+      service: file_storage_microservice_redis
+    networks:
+      - app_network
+
+  file_storage_microservice_celery_worker:
+    extends:
+      file: file_storage_microservice/docker-compose.yml
+      service: file_storage_microservice_celery_worker
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    name: app_network
 
 volumes:
   user_db_data:
   compressing_service_shared_data:
+  file_storage_microservice_mongodb_data:
+  file_storage_microservice_minio_data:

@@ -56,7 +56,7 @@ const Profile = () => {
         };
 
         try {
-            const response = await fetch('http://localhost:8080/api/user/update', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user/update`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -120,7 +120,7 @@ const Profile = () => {
         <>
             <div className="profile-sub-menu">
                 {user.role == "ADMIN" ? (<Link href='/profile/admin'>Admin</Link>) : (null)}
-                <Link href="/profile/user-videos">My videos</Link>
+                <Link href="/profile/myfiles">My Files</Link>
             </div>
             <div className="profile-container">
 

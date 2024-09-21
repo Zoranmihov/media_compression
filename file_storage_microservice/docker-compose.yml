@@ -5,7 +5,7 @@ services:
     image: mongo:4.4
     container_name: file_storage_microservice_mongodb
     networks:
-      - file_storage_microservice_backend
+      - app_network
     ports:
       - "27017:27017"
     volumes:
@@ -23,7 +23,7 @@ services:
     image: minio/minio
     container_name: file-storage-microservice-minio
     networks:
-      - file_storage_microservice_backend
+      - app_network
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -38,9 +38,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: file_storage_microservice_fastapi
+    container_name: file-storage-microservice-fastapi
     networks:
-      - file_storage_microservice_backend
+      - app_network
     ports:
       - "8084:8084"
     depends_on:
@@ -57,7 +57,7 @@ services:
     image: redis:alpine
     container_name: file_storage_microservice_redis
     networks:
-      - file_storage_microservice_backend
+      - app_network
 
   file_storage_microservice_celery_worker:
     build:
@@ -68,10 +68,10 @@ services:
       - file_storage_microservice_redis
       - file_storage_microservice_fastapi
     networks:
-      - file_storage_microservice_backend
+      - app_network
 
 networks:
-  file_storage_microservice_backend:
+  app_network:
 
 volumes:
   file_storage_microservice_mongodb_data:

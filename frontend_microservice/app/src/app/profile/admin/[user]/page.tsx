@@ -59,7 +59,7 @@ const FoundUser = ({ params }) => {
                     newRole: newInformation.toUpperCase(),
                 };
 
-                response = await fetch('http://localhost:8080/api/user/updaterole', {
+                response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user/updaterole`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -88,7 +88,7 @@ const FoundUser = ({ params }) => {
                     accountId: foundUser.id,
                 };
 
-                response = await fetch('http://localhost:8080/api/user/update', {
+                response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user/update`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
