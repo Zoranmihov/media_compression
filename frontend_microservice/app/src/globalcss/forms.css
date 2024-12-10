@@ -78,3 +78,10 @@ input:-webkit-autofill:active {
     background-color: rgb(173, 15, 15);
     color: white;
 }
+
+.login-form-error {
+    margin: 0;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    text-align: center;
+}

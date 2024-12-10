@@ -218,23 +218,39 @@ def delete_all_user_files(self, user_id):
         db = client["filedb"]
 
         minio_client = Minio(
-            "file-storage-microservice-minio:9000", 
-            access_key="root",  
-            secret_key="root1234", 
-            secure=False  
+            "file-storage-microservice-minio:9000",
+            access_key="root",
+            secret_key="root1234",
+            secure=False
         )
+
+        bucket_name = f"user-bucket-{user_id}"
 
         # Retrieve all files for the user
         files = db.files.find({"user_id": user_id})
 
+        # Delete files from the MinIO bucket
         for file_meta in files:
-            # Use file_id as the object name to delete the file from MinIO
             minio_client.remove_object(file_meta['bucket_name'], file_meta['file_id'])
 
         # Delete metadata for the user from MongoDB
         db.files.delete_many({"user_id": user_id})
 
-        return {"status": "success", "message": f"All files for user {user_id} deleted"}
+        # Delete the user's bucket from MinIO
+        try:
+            # Check if the bucket exists and is empty before deleting
+            objects = minio_client.list_objects(bucket_name)
+            if any(objects):
+                raise Exception(f"Bucket {bucket_name} is not empty.")
+            
+            minio_client.remove_bucket(bucket_name)
+            print(f"Bucket {bucket_name} successfully deleted.")
+        except S3Error as exc:
+            print(f"Failed to delete bucket {bucket_name}: {exc}")
+            return {"status": "failure", "error": f"Bucket deletion failed: {exc}"}
+
+        return {"status": "success", "message": f"All files and bucket for user {user_id} deleted"}
+
     except S3Error as exc:
         print(f"Failed to delete files from MinIO: {exc}")
         return {"status": "failure", "error": str(exc)}
@@ -244,6 +260,7 @@ def delete_all_user_files(self, user_id):
     except Exception as exc:
         print(f"An unexpected error occurred: {exc}")
         return {"status": "failure", "error": str(exc)}
+
 
 @celery_app.task(bind=True)
 def fetch_user_files_task(self, user_id):

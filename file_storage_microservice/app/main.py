@@ -198,43 +198,45 @@ async def delete_specific_file(file_id: str, UserId: str = Header(None)):
         raise HTTPException(status_code=500, detail=f"An error occurred while deleting the file: {str(e)}")
  
 @app.delete("/api/storage/deleteuserfiles/")
-async def delete_user_files(user_id: str):
+async def delete_user_files(UserId: str = Header(None)):
+    if not UserId:
+        raise HTTPException(status_code=400, detail="UserId header is missing.")
+
     try:
-        # Start the Celery task for file deletion
-        task = delete_all_user_files.delay(user_id)
+        # Trigger the Celery task to delete all user files
+        task = delete_all_user_files.delay(UserId)
 
         # Notify the user via WebSocket that the deletion is in progress
-        if user_id in active_connections:
-            for ws in active_connections[user_id]:
-                await ws.send_json({"message": "File deletion in progress", "user_id": user_id})
+        if UserId in active_connections:
+            for ws in active_connections[UserId]:
+                await ws.send_json({"message": "File deletion started", "user_id": UserId})
 
-        # Continuously check the status of the task and update the WebSocket
-        while not task.ready():
-            if user_id in active_connections:
-                for ws in active_connections[user_id]:
-                    await ws.send_json({"message": "File deletion is still in progress", "user_id": user_id})
-            await asyncio.sleep(2) 
+        # Poll task status in a separate coroutine to avoid blocking
+        async def poll_task():
+            while not task.ready():
+                if UserId in active_connections:
+                    for ws in active_connections[UserId]:
+                        await ws.send_json({"message": "File deletion in progress", "user_id": UserId})
+                await asyncio.sleep(2)
+            
+            result = task.get()
+            if UserId in active_connections:
+                message = (
+                    {"message": "All files deleted successfully"} if result["status"] == "success"
+                    else {"message": f"Deletion failed: {result['error']}"}
+                )
+                for ws in active_connections[UserId]:
+                    await ws.send_json(message)
 
-        result = task.get()
-
-        # After task completion, notify the user via WebSocket
-        if result["status"] == "success":
-            if user_id in active_connections:
-                for ws in active_connections[user_id]:
-                    await ws.send_json({"message": "All files deleted successfully", "user_id": user_id})
-            return {"message": result["message"]}
-        else:
-            if user_id in active_connections:
-                for ws in active_connections[user_id]:
-                    await ws.send_json({"message": f"Deletion failed: {result['error']}", "user_id": user_id})
-            raise HTTPException(status_code=404, detail=result["message"])
+        asyncio.create_task(poll_task())
+        return {"message": "File deletion task initiated"}
 
     except Exception as e:
-        if user_id in active_connections:
-            for ws in active_connections[user_id]:
-                await ws.send_json({"message": f"Deletion failed: {str(e)}", "user_id": user_id})
+        if UserId in active_connections:
+            for ws in active_connections[UserId]:
+                await ws.send_json({"message": f"Deletion failed: {str(e)}", "user_id": UserId})
         raise HTTPException(status_code=500, detail=f"Deletion failed: {str(e)}")
-    
+
 @app.get("/api/storage/getuserfiles/", response_model=list)
 async def get_user_files(userid: str = Header(...)):
     try:
